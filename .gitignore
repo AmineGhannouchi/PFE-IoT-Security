@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+iot_security_env/
+env/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Datasets volumineux (ne pas versionner)
+05-Machine-Learning/Datasets/Raw/*.csv
+05-Machine-Learning/Datasets/Raw/*.pcap
+04-Traffic-Analysis/Captures/*.pcap
+
+# Certificats et clés privées (SÉCURITÉ CRITIQUE)
+*.key
+*.pem
+*.crt
+*.csr
+02-Security/PKI/certificates/**/*
+!02-Security/PKI/certificates/**/.gitkeep
+
+# Logs
+*.log
+03-Monitoring/Logs/**/*.log
+
+# VMs et images ISO
+*.vdi
+*.vmdk
+*.vhdx
+*.iso
+*.ova
+
+# Outils téléchargés
+10-Tools/downloads/*
+!10-Tools/downloads/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Secrets (NE JAMAIS COMMIT)
+*.env
+secrets.yml
+vault-keys.txt
+.vault-token
+
+# Configurations locales
+config.local.yml
+settings.local.json

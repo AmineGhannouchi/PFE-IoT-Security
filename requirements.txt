@@ -1,0 +1,45 @@
+# ============ MQTT & IoT Protocols ============
+paho-mqtt==1.6.1          # Client MQTT Python
+aiocoap==0.4.7            # Protocole CoAP asynchrone
+
+# ============ Data Science & ML ============
+pandas==2.1.4             # Manipulation données
+numpy==1.26.2             # Calculs numériques
+scikit-learn==1.3.2       # ML classique (Isolation Forest, Random Forest)
+
+# ============ Visualization (OBLIGATOIRE) ============
+matplotlib==3.8.2         # Graphiques statiques
+seaborn==0.13.0           # Graphiques statistiques avancés
+
+# ============ Network Analysis ============
+scapy==2.5.0              # Manipulation paquets réseau
+pyshark==0.6              # Analyse PCAP (wrapper Wireshark)
+
+# ============ Security & Cryptography ============
+cryptography==41.0.7      # Bibliothèque crypto moderne
+pyOpenSSL==23.3.0         # Interface OpenSSL
+
+# ============ Jupyter & Notebooks ============
+jupyterlab==4.0.9         # Interface Jupyter moderne
+notebook==7.0.6           # Notebooks classiques
+ipykernel==6.27.1         # Noyau Python pour Jupyter
+
+# ============ Automation & SSH ============
+paramiko==3.4.0           # Connexions SSH automatisées vers VMs
+
+# ============ Utils ============
+requests==2.31.0          # Requêtes HTTP
+pyyaml==6.0.1             # Lecture/écriture YAML
+python-dotenv==1.0.0      # Gestion variables d'environnement
+
+# ============ Testing ============
+pytest==7.4.3             # Framework de tests
+
+# ==========================================
+# Packages OPTIONNELS (installer si besoin)
+# ==========================================
+plotly==5.18.0          # Graphiques interactifs (30 MB)
+ansible==9.0.1          # Automatisation multi-VMs (100 MB)
+locust==2.20.0          # Tests de charge Python (15 MB)
+wazuh-api==4.7.0        # API Wazuh (2 MB)
+tensorflow==2.15.0      # Deep Learning (500 MB) - À installer plus tard si LSTM
