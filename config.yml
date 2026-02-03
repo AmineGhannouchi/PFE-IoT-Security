@@ -1,0 +1,231 @@
+# ==========================================
+# PFE IoT Security - Configuration Globale
+# ==========================================
+
+project:
+  name: "PFE-IoT-Security"
+  version: "1.0.0"
+  author: "Amine Ghannouchi"
+  description: "Sécurisation des flux de communication dans une solution IoT"
+  year: 2026
+
+# ==========================================
+# Environnement Matériel
+# ==========================================
+environment:
+  os: "Windows 11"
+  hypervisor: "VMware Workstation Pro"
+  ram_total_gb: 16
+  ram_allocated_vms_gb: 10
+  ram_reserved_host_gb: 6
+  cpu_cores: 6
+  cpu_threads: 12
+  storage_required_gb: 100
+  storage_type: "SSD"
+
+# ==========================================
+# Configuration Réseau
+# ==========================================
+networking:
+  vlans:
+    iot_devices:
+      id: 10
+      subnet: "192.168.10.0/24"
+      gateway: "192.168.10.1"
+    siem_monitoring:
+      id: 20
+      subnet: "192.168.20.0/24"
+      gateway: "192.168.20.1"
+    management_pki:
+      id: 30
+      subnet: "192.168.30.0/24"
+      gateway: "192.168.30.1"
+  
+  ports:
+    mqtt_unencrypted: 1883
+    mqtt_tls: 8883
+    mqtt_websocket: 9001
+    coap: 5683
+    coaps: 5684
+    vault: 8200
+    wazuh_api: 55000
+    wazuh_registration: 1514
+    wazuh_cluster: 1516
+    opensearch: 9200
+    opensearch_dashboard: 5601
+    suricata: 8080
+
+# ==========================================
+# Machines Virtuelles
+# ==========================================
+virtual_machines:
+  wazuh_allinone:
+    name: "Wazuh-AllInOne"
+    os: "Ubuntu Server 22.04 LTS"
+    ram_gb: 8
+    cpu_cores: 2
+    disk_gb: 50
+    ip: "192.168.20.10"
+    services:
+      - "Wazuh Manager"
+      - "OpenSearch"
+      - "Wazuh Dashboard"
+  
+  gns3_vm:
+    name: "GNS3-VM"
+    os: "GNS3 VM"
+    ram_gb: 2
+    cpu_cores: 1
+    disk_gb: 20
+    ip: "192.168.30.20"
+    services:
+      - "GNS3 Server"
+
+# ==========================================
+# Conteneurs Docker
+# ==========================================
+docker_containers:
+  mosquitto:
+    image: "eclipse-mosquitto:2.0"
+    ports:
+      - "1883:1883"
+      - "8883:8883"
+      - "9001:9001"
+    network: "iot-network"
+  
+  vault:
+    image: "hashicorp/vault:latest"
+    ports:
+      - "8200:8200"
+    network: "iot-network"
+  
+  sensors:
+    - name: "sensor-temp-001"
+      type: "temperature"
+      publish_interval_sec: 5
+    - name: "sensor-humid-001"
+      type: "humidity"
+      publish_interval_sec: 5
+    - name: "sensor-motion-001"
+      type: "motion"
+      publish_interval_sec: 3
+
+# ==========================================
+# PKI Configuration
+# ==========================================
+pki:
+  ca:
+    common_name: "IoT-PFE-CA"
+    organization: "IoT-PFE"
+    country: "TN"
+    state: "Tunis"
+    locality: "Tunis"
+    validity_days: 3650  # 10 ans
+  
+  server_certificates:
+    validity_days: 365  # 1 an
+  
+  client_certificates:
+    validity_days: 90  # 3 mois (rotation trimestrielle)
+    rotation_enabled: true
+  
+  key_size:
+    ca: 4096
+    server: 2048
+    client: 2048
+
+# ==========================================
+# Sécurité
+# ==========================================
+security:
+  tls_version: "TLSv1.3"
+  cipher_suites:
+    - "TLS_AES_256_GCM_SHA384"
+    - "TLS_CHACHA20_POLY1305_SHA256"
+  
+  mqtt:
+    require_certificate: true
+    allow_anonymous: false
+    acl_enabled: true
+  
+  wazuh:
+    log_level: "info"
+    email_alerts: false
+    custom_rules_enabled: true
+
+# ==========================================
+# Machine Learning
+# ==========================================
+machine_learning:
+  datasets:
+    - name: "IoT-23"
+      url: "https://www.stratosphereips.org/datasets-iot23"
+      type: "malicious_traffic"
+    - name: "TON_IoT"
+      url: "https://research.unsw.edu.au/projects/toniot-datasets"
+      type: "telemetry"
+  
+  models:
+    isolation_forest:
+      contamination: 0.1
+      n_estimators: 100
+    random_forest:
+      n_estimators: 100
+      max_depth: 10
+  
+  evaluation:
+    test_size: 0.2
+    random_state: 42
+    target_accuracy: 0.90
+
+# ==========================================
+# Tests de Performance
+# ==========================================
+performance_tests:
+  mqtt_load:
+    messages_per_second: 100
+    duration_minutes: 10
+    concurrent_clients: 50
+  
+  latency_targets:
+    mqtt_publish_ms: 100
+    wazuh_correlation_sec: 5
+    ml_prediction_ms: 500
+
+# ==========================================
+# Chemins du Projet
+# ==========================================
+paths:
+  documentation: "00-Documentation"
+  infrastructure: "01-Infrastructure"
+  security: "02-Security"
+  monitoring: "03-Monitoring"
+  traffic_analysis: "04-Traffic-Analysis"
+  machine_learning: "05-Machine-Learning"
+  testing: "06-Testing"
+  scenarios: "07-Scenarios"
+  scripts: "08-Scripts"
+  results: "09-Results"
+  tools: "10-Tools"
+  
+  certificates: "02-Security/PKI/certificates"
+  logs: "03-Monitoring/Logs"
+  datasets: "05-Machine-Learning/Datasets"
+  models: "05-Machine-Learning/Models"
+  pcap_captures: "04-Traffic-Analysis/Captures"
+
+# ==========================================
+# Standards et Conformité
+# ==========================================
+compliance:
+  standards:
+    - "ISO/IEC 27001:2022"
+    - "NIST Cybersecurity Framework"
+    - "OWASP IoT Top 10"
+  
+  documentation_required:
+    - "Architecture Design Document"
+    - "Security Policy"
+    - "Risk Assessment"
+    - "Test Reports"
+    - "User Manual"

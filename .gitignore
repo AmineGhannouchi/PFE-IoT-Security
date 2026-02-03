@@ -63,3 +63,6 @@ vault-keys.txt
 # Configurations locales
 config.local.yml
 settings.local.json
+
+# Configuration locale (ne pas commit)
+config.local.yml
