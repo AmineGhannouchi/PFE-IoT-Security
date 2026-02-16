@@ -69,3 +69,6 @@ config.local.yml
 
 *.iso
 *.exe
+*.zip
+tools/downloads/*
+PFE-GNS3/project-files/*
