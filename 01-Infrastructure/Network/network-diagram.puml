@@ -1,0 +1,172 @@
+' =============================================================================
+' Fichier     : network-diagram.puml
+' Description : Diagramme PlantUML de l'infrastructure réseau PFE IoT Security
+'               Phase 1 - Architecture complète avec VLANs et flux
+' Version     : 1.0
+' Auteur      : PFE IoT Security Team
+' Date        : 2026-03-03
+' Rendu       : https://www.plantuml.com/plantuml/uml/
+' =============================================================================
+
+@startuml PFE-IoT-Security-Network-Diagram
+
+' Style général
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 12
+skinparam ArrowColor #555555
+skinparam ArrowThickness 1.5
+
+' Styles des composants
+skinparam node {
+    BackgroundColor #E8F4FD
+    BorderColor #2980B9
+    FontColor #1A252F
+}
+
+skinparam cloud {
+    BackgroundColor #FCF3CF
+    BorderColor #F39C12
+}
+
+skinparam rectangle {
+    BackgroundColor #E8F8F5
+    BorderColor #1ABC9C
+}
+
+skinparam database {
+    BackgroundColor #F4ECF7
+    BorderColor #8E44AD
+}
+
+title PFE IoT Security - Architecture Réseau Phase 1\n(OS: Windows 11 | Hyperviseur: VMware Workstation Pro | GNS3 2.2.56)
+
+' =============================================================================
+' Zone Internet / WAN
+' =============================================================================
+cloud "Internet\n(VMware NAT - VMnet8)" as INTERNET {
+    node "hote-windows\n(Cloud VMnet8)\nDHCP" as HOTE_WIN
+}
+
+' =============================================================================
+' Zone pfSense (DMZ/Périmètre)
+' =============================================================================
+package "Zone Périmètre" #FDEDEC {
+    node "pfSense-FW\n192.168.100.1/24 (LAN)\nWAN: DHCP VMware NAT\nRAM: 1024 Mo" as PFSENSE
+}
+
+' =============================================================================
+' Zone MikroTik (Core L3)
+' =============================================================================
+package "Core L3 - MikroTik CHR" #EBF5FB {
+    node "MikroTik-CHR\nCoreSwitchL3\nether1: 192.168.100.2/24\nVLAN10 GW: 192.168.10.1\nVLAN20 GW: 192.168.20.1\nVLAN30 GW: 192.168.30.1" as MIKROTIK
+}
+
+' =============================================================================
+' VLAN 10 - Réseau IoT
+' =============================================================================
+package "VLAN 10 - Réseau IoT (192.168.10.0/24)" #E8F8F5 {
+
+    node "SW-VLAN10-IoT\n(ethernet_switch GNS3)\ne0: trunk→MikroTik ether2\ne1-e3: access VLAN10" as SW10
+
+    rectangle "Docker-Host\nUbuntu 22.04\neth0.10: 192.168.10.100/24\n(VMware VMnet3)" as DOCKER_HOST_V10 {
+        node "mosquitto\n192.168.10.20\nMQTT: 1883/8883/9001" as MQTT
+        node "iot-gateway\n192.168.10.10\nMQTT enrichissement" as GW
+        node "sensor-temp\n192.168.10.101\nTemp: 5s" as S_TEMP
+        node "sensor-humid\n192.168.10.102\nHumid: 5s" as S_HUMID
+        node "sensor-motion\n192.168.10.103\nMotion: 3s" as S_MOTION
+    }
+}
+
+' =============================================================================
+' VLAN 20 - Réseau SIEM
+' =============================================================================
+package "VLAN 20 - Réseau SIEM (192.168.20.0/24)" #FEF9E7 {
+
+    node "SW-VLAN20-SIEM\n(ethernet_switch GNS3)\ne0: trunk→MikroTik ether3\ne1: access Wazuh\ne2: access Suricata\ne3: SPAN mirror" as SW20
+
+    node "Wazuh Manager\n192.168.20.10\nAPI: 55000 | Agent: 1514\n(VMware VM)" as WAZUH
+
+    rectangle "Docker-Host\neth0.20: 192.168.20.100/24" as DOCKER_HOST_V20 {
+        node "suricata\n(réseau hôte)\nIDS - analyse eth0.10 SPAN" as SURICATA
+    }
+}
+
+' =============================================================================
+' VLAN 30 - Réseau Management/PKI
+' =============================================================================
+package "VLAN 30 - Réseau Management/PKI (192.168.30.0/24)" #F4ECF7 {
+
+    node "SW-VLAN30-MGT\n(ethernet_switch GNS3)\ne0: trunk→MikroTik ether4\ne1: access Vault\ne2: access host-windows" as SW30
+
+    rectangle "Docker-Host\neth0.30: 192.168.30.100/24" as DOCKER_HOST_V30 {
+        database "vault\n192.168.30.10\nAPI: 8200 | UI: 8200/ui\nHashiCorp Vault 1.15" as VAULT
+    }
+}
+
+' =============================================================================
+' Connexions réseau
+' =============================================================================
+
+' Internet → pfSense
+INTERNET --> PFSENSE : "WAN (DHCP VMware NAT)\nem0"
+
+' pfSense → MikroTik
+PFSENSE --> MIKROTIK : "LAN 192.168.100.0/24\nether1 ↔ em1"
+
+' MikroTik → Switches VLAN
+MIKROTIK --> SW10 : "ether2 → VLAN10\n(trunk dot1q)"
+MIKROTIK --> SW20 : "ether3 → VLAN20\n(trunk dot1q)"
+MIKROTIK --> SW30 : "ether4 → VLAN30\n(trunk dot1q)"
+MIKROTIK --> SURICATA : "ether5 → SPAN\n(port miroir)"
+
+' Switch VLAN10 → Conteneurs
+SW10 --> MQTT    : "access VLAN10"
+SW10 --> GW      : "access VLAN10"
+SW10 --> S_TEMP  : "access VLAN10"
+SW10 --> S_HUMID : "access VLAN10"
+SW10 --> S_MOTION: "access VLAN10"
+
+' Switch VLAN20 → Services SIEM
+SW20 --> WAZUH    : "access VLAN20"
+SW20 --> SURICATA : "access VLAN20 (SPAN)"
+
+' Switch VLAN30 → Services Management
+SW30 --> VAULT    : "access VLAN30"
+SW30 --> HOTE_WIN : "access VLAN30\n(VMnet8)"
+
+' =============================================================================
+' Flux applicatifs (pointillés)
+' =============================================================================
+
+' Capteurs → MQTT
+S_TEMP   ..> MQTT : "publish: iot/sensors/temperature/#\nQoS 1"
+S_HUMID  ..> MQTT : "publish: iot/sensors/humidity/#\nQoS 1"
+S_MOTION ..> MQTT : "publish: iot/sensors/motion/#\nQoS 1"
+
+' Gateway ↔ MQTT
+GW ..> MQTT : "subscribe: iot/sensors/#\npublish: iot/gateway/#"
+
+' IoT → SIEM (logs autorisés par MikroTik)
+MQTT    ..> WAZUH : "logs MQTT → Wazuh\n(autorisé FW)"
+MIKROTIK ..> WAZUH : "syslog firewall\nUDP 514"
+
+' IoT → Vault PKI (port 8200 autorisé)
+GW ..> VAULT : "PKI certs\nHTTP 8200"
+
+' Wazuh collecte depuis tout
+WAZUH ..> SURICATA : "alerts IDS\n(API/logs)"
+
+' =============================================================================
+' Légende
+' =============================================================================
+legend right
+  |= Symbole |= Signification |
+  | <b>→</b> (ligne pleine) | Connexion physique/réseau |
+  | <b>..</b> (pointillé) | Flux applicatif |
+  | VLAN 10 (vert) | Réseau IoT |
+  | VLAN 20 (jaune) | Réseau SIEM |
+  | VLAN 30 (violet) | Réseau Management/PKI |
+endlegend
+
+@enduml
