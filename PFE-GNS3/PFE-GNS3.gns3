@@ -502,12 +502,12 @@
                 "label": {
                     "rotation": 0,
                     "style": "font-family: TypeWriter;font-size: 10.0;font-weight: bold;fill: #000000;fill-opacity: 1.0;",
-                    "text": "IoT-Gateway1",
-                    "x": -26,
-                    "y": -33
+                    "text": "IoT-Gateway",
+                    "x": -13,
+                    "y": -25
                 },
                 "locked": false,
-                "name": "IoT-Gateway1",
+                "name": "IoT-Gateway",
                 "node_id": "039b2f61-f198-46c0-bd79-cc2d497f3f63",
                 "node_type": "vpcs",
                 "port_name_format": "Ethernet{0}",
@@ -731,8 +731,8 @@
                 "symbol": ":/symbols/qemu_guest.svg",
                 "template_id": "84c23b4e-7b67-4e17-bd03-8cd96649d945",
                 "width": 65,
-                "x": -6,
-                "y": -144,
+                "x": -7,
+                "y": -20,
                 "z": 1
             },
             {
@@ -914,6 +914,11 @@
                             "type": "ethernet"
                         },
                         {
+                            "name": "Ethernet",
+                            "special": false,
+                            "type": "ethernet"
+                        },
+                        {
                             "name": "Connexion au r\u00e9seau local* 10",
                             "special": false,
                             "type": "ethernet"
@@ -985,7 +990,7 @@
                 "compute_id": "vm",
                 "console": null,
                 "console_auto_start": false,
-                "console_type": null,
+                "console_type": "none",
                 "custom_adapters": [],
                 "first_port_name": null,
                 "height": 71,
@@ -1052,13 +1057,13 @@
                 "symbol": ":/symbols/cloud.svg",
                 "template_id": "39e257dc-8412-3174-b6b3-0ee3ed6a43e9",
                 "width": 159,
-                "x": -47,
-                "y": -287,
+                "x": -48,
+                "y": -163,
                 "z": 1
             },
             {
                 "compute_id": "vm",
-                "console": 5008,
+                "console": 5009,
                 "console_auto_start": false,
                 "console_type": "none",
                 "custom_adapters": [],
@@ -1176,7 +1181,7 @@
             },
             {
                 "compute_id": "vm",
-                "console": 5003,
+                "console": 5010,
                 "console_auto_start": false,
                 "console_type": "none",
                 "custom_adapters": [],
@@ -1259,5 +1264,5 @@
     "type": "topology",
     "variables": null,
     "version": "2.2.56",
-    "zoom": 119
+    "zoom": 83
 }
