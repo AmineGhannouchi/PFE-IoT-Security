@@ -1,0 +1,311 @@
+# =============================================================================
+# Fichier     : docker-compose.yml
+# Description : Infrastructure Docker complète pour le PFE IoT Security
+#               Phase 1 - Tous les services IoT, SIEM et PKI
+# Version     : 1.0
+# Auteur      : PFE IoT Security Team
+# Date        : 2026-03-03
+# Usage       : docker compose up -d
+# Prérequis   : Interfaces eth0.10, eth0.20, eth0.30 configurées sur Docker-Host
+# =============================================================================
+
+services:
+
+  # ===========================================================================
+  # VLAN 10 - Réseau IoT (192.168.10.0/24)
+  # ===========================================================================
+
+  # ---------------------------------------------------------------------------
+  # Mosquitto MQTT Broker
+  # Broker MQTT central pour tous les capteurs IoT
+  # ---------------------------------------------------------------------------
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: mosquitto
+    hostname: mqtt-broker
+    restart: unless-stopped
+    networks:
+      vlan10:
+        ipv4_address: 192.168.10.20
+    ports:
+      - "1883:1883"    # MQTT non sécurisé (tests initiaux)
+      - "8883:8883"    # MQTT over TLS (activé Phase 3)
+      - "9001:9001"    # WebSocket MQTT
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-h", "localhost", "-p", "1883"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    labels:
+      - "com.pfe.service=mqtt-broker"
+      - "com.pfe.vlan=10"
+      - "com.pfe.role=messaging"
+
+  # ---------------------------------------------------------------------------
+  # IoT Gateway
+  # Passerelle MQTT interne : souscrit aux capteurs et transmet au broker
+  # ---------------------------------------------------------------------------
+  iot-gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: iot-gateway
+    hostname: iot-gateway
+    restart: unless-stopped
+    networks:
+      vlan10:
+        ipv4_address: 192.168.10.10
+    environment:
+      - MQTT_BROKER=${MQTT_BROKER_IP:-192.168.10.20}
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - GATEWAY_ID=gw-001
+      - LOG_LEVEL=INFO
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(5); s.connect(('192.168.10.20', 1883)); s.close()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    labels:
+      - "com.pfe.service=iot-gateway"
+      - "com.pfe.vlan=10"
+      - "com.pfe.role=gateway"
+
+  # ---------------------------------------------------------------------------
+  # Capteur température
+  # Publie des données de température toutes les 5 secondes
+  # ---------------------------------------------------------------------------
+  sensor-temp:
+    build:
+      context: ./sensors
+      dockerfile: Dockerfile
+    container_name: sensor-temp
+    hostname: sensor-temp
+    restart: unless-stopped
+    networks:
+      vlan10:
+        ipv4_address: 192.168.10.101
+    environment:
+      - MQTT_BROKER=${MQTT_BROKER_IP:-192.168.10.20}
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - SENSOR_TYPE=temperature
+      - SENSOR_ID=sensor-temp-001
+      - PUBLISH_INTERVAL=5
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(5); s.connect(('192.168.10.20', 1883)); s.close()"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "com.pfe.service=sensor-temperature"
+      - "com.pfe.vlan=10"
+      - "com.pfe.role=sensor"
+
+  # ---------------------------------------------------------------------------
+  # Capteur humidité
+  # Publie des données d'humidité toutes les 5 secondes
+  # ---------------------------------------------------------------------------
+  sensor-humid:
+    build:
+      context: ./sensors
+      dockerfile: Dockerfile
+    container_name: sensor-humid
+    hostname: sensor-humid
+    restart: unless-stopped
+    networks:
+      vlan10:
+        ipv4_address: 192.168.10.102
+    environment:
+      - MQTT_BROKER=${MQTT_BROKER_IP:-192.168.10.20}
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - SENSOR_TYPE=humidity
+      - SENSOR_ID=sensor-humid-001
+      - PUBLISH_INTERVAL=5
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(5); s.connect(('192.168.10.20', 1883)); s.close()"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "com.pfe.service=sensor-humidity"
+      - "com.pfe.vlan=10"
+      - "com.pfe.role=sensor"
+
+  # ---------------------------------------------------------------------------
+  # Capteur mouvement
+  # Publie des détections de mouvement toutes les 3 secondes
+  # ---------------------------------------------------------------------------
+  sensor-motion:
+    build:
+      context: ./sensors
+      dockerfile: Dockerfile
+    container_name: sensor-motion
+    hostname: sensor-motion
+    restart: unless-stopped
+    networks:
+      vlan10:
+        ipv4_address: 192.168.10.103
+    environment:
+      - MQTT_BROKER=${MQTT_BROKER_IP:-192.168.10.20}
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - SENSOR_TYPE=motion
+      - SENSOR_ID=sensor-motion-001
+      - PUBLISH_INTERVAL=3
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(5); s.connect(('192.168.10.20', 1883)); s.close()"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "com.pfe.service=sensor-motion"
+      - "com.pfe.vlan=10"
+      - "com.pfe.role=sensor"
+
+  # ===========================================================================
+  # VLAN 30 - Réseau Management/PKI (192.168.30.0/24)
+  # ===========================================================================
+
+  # ---------------------------------------------------------------------------
+  # HashiCorp Vault - Gestion des secrets et PKI
+  # Mode production (non dev) - TLS à activer en Phase 2
+  # ---------------------------------------------------------------------------
+  vault:
+    image: hashicorp/vault:1.15
+    container_name: vault
+    hostname: vault-pki
+    restart: unless-stopped
+    networks:
+      vlan30:
+        ipv4_address: 192.168.30.10
+    ports:
+      - "8200:8200"    # API Vault et UI
+    cap_add:
+      - IPC_LOCK       # Nécessaire pour empêcher le swap mémoire des secrets
+    environment:
+      - VAULT_ADDR=http://0.0.0.0:8200
+      - VAULT_API_ADDR=http://192.168.30.10:8200
+    volumes:
+      - ./vault/vault-config.hcl:/vault/config/vault-config.hcl:ro
+      - vault-data:/vault/data
+    command: vault server -config=/vault/config/vault-config.hcl
+    healthcheck:
+      test: ["CMD", "vault", "status", "-address=http://127.0.0.1:8200"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    labels:
+      - "com.pfe.service=vault-pki"
+      - "com.pfe.vlan=30"
+      - "com.pfe.role=pki"
+
+  # ===========================================================================
+  # VLAN 20 - Réseau SIEM (192.168.20.0/24)
+  # ===========================================================================
+
+  # ---------------------------------------------------------------------------
+  # Suricata IDS
+  # Analyse le trafic miroir (SPAN) depuis MikroTik ether5
+  # Utilise le réseau host pour accéder aux interfaces VLAN
+  # ---------------------------------------------------------------------------
+  suricata:
+    image: jasonish/suricata:latest
+    container_name: suricata
+    hostname: suricata-ids
+    restart: unless-stopped
+    network_mode: host    # Accès direct aux interfaces réseau du Docker-Host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_NICE
+    environment:
+      - SURICATA_OPTIONS=-i eth0.10
+    volumes:
+      - ./suricata/rules:/etc/suricata/rules:ro
+      - suricata-logs:/var/log/suricata
+    command: >
+      suricata -c /etc/suricata/suricata.yaml
+               -i eth0.10
+               --set outputs.1.eve-log.filename=/var/log/suricata/eve.json
+    healthcheck:
+      test: ["CMD", "test", "-f", "/var/log/suricata/suricata.log"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "com.pfe.service=suricata-ids"
+      - "com.pfe.vlan=20"
+      - "com.pfe.role=ids"
+
+# =============================================================================
+# Réseaux Docker (macvlan - connexion directe aux VLANs GNS3)
+# Chaque réseau est attaché à une interface VLAN de l'hôte
+# =============================================================================
+networks:
+
+  # Réseau IoT - VLAN 10
+  vlan10:
+    driver: macvlan
+    driver_opts:
+      parent: eth0.10    # Interface VLAN10 du Docker-Host
+    ipam:
+      config:
+        - subnet: 192.168.10.0/24
+          gateway: 192.168.10.1
+          ip_range: 192.168.10.0/25    # Plage allouée aux conteneurs
+
+  # Réseau SIEM - VLAN 20
+  vlan20:
+    driver: macvlan
+    driver_opts:
+      parent: eth0.20    # Interface VLAN20 du Docker-Host
+    ipam:
+      config:
+        - subnet: 192.168.20.0/24
+          gateway: 192.168.20.1
+          ip_range: 192.168.20.0/25
+
+  # Réseau Management/PKI - VLAN 30
+  vlan30:
+    driver: macvlan
+    driver_opts:
+      parent: eth0.30    # Interface VLAN30 du Docker-Host
+    ipam:
+      config:
+        - subnet: 192.168.30.0/24
+          gateway: 192.168.30.1
+          ip_range: 192.168.30.0/25
+
+# =============================================================================
+# Volumes persistants
+# =============================================================================
+volumes:
+  mosquitto-data:
+    name: pfe-mosquitto-data
+  mosquitto-log:
+    name: pfe-mosquitto-log
+  vault-data:
+    name: pfe-vault-data
+  suricata-logs:
+    name: pfe-suricata-logs
