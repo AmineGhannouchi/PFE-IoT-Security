@@ -3,15 +3,15 @@
 # Fichier     : setup-docker-host.sh
 # Description : Script de configuration complète de la VM Docker-Host Ubuntu 22.04
 #               pour le PFE IoT Security - Phase 1
-# Version     : 2.0
+# Version     : 3.0
 # Auteur      : PFE IoT Security Team
 # Date        : 2026-03-07
 # Usage       : sudo bash setup-docker-host.sh
-# Prérequis   : Ubuntu 22.04 Server, 4 interfaces réseau :
-#               eth0=VMnet1 (parent macvlan VLAN10 IoT)
-#               eth1=VMnet2 (parent macvlan VLAN20 SIEM)
-#               eth2=VMnet3 (IP fixe 192.168.30.100, VLAN30 Mgmt)
-#               eth3=VMnet8 (DHCP NAT internet)
+# Prérequis   : Ubuntu 22.04 Server, 4 interfaces réseau VMware :
+#               ens33=VMnet1 (parent macvlan VLAN10 IoT)
+#               ens34=VMnet2 (parent macvlan VLAN20 SIEM)
+#               ens35=VMnet3 (IP fixe 192.168.30.100, VLAN30 Mgmt)
+#               ens36=VMnet8 (DHCP NAT internet)
 # =============================================================================
 
 set -euo pipefail
@@ -32,11 +32,45 @@ avert()   { echo -e "${JAUNE}[AVERT]${RESET} $*"; }
 erreur()  { echo -e "${ROUGE}[ERREUR]${RESET} $*"; exit 1; }
 etape()   { echo -e "\n${CYAN}${GRAS}>>> $* <<<${RESET}\n"; }
 
+# =============================================================================
+# Étape 0 : Auto-détection des interfaces VMware
+# =============================================================================
+etape "Étape 0 : Auto-détection des interfaces réseau VMware"
+
+# Valeurs par défaut (noms d'interfaces Ubuntu Server + VMware Workstation Pro)
+DEFAULT_VLAN10="ens33"   # VMnet1 - parent macvlan VLAN10 IoT
+DEFAULT_VLAN20="ens34"   # VMnet2 - parent macvlan VLAN20 SIEM
+DEFAULT_MGMT="ens35"     # VMnet3 - Management/PKI, IP fixe 192.168.30.100
+DEFAULT_NAT="ens36"      # VMnet8 - DHCP NAT internet
+
+info "Interfaces disponibles sur ce système :"
+ip link show | grep -E '^[0-9]+:' | awk '{print "  "$2}' | tr -d ':' || true
+
+# Vérifier si les interfaces par défaut existent
+_detect_iface() {
+    local default_name="$1"
+    local role="$2"
+    if ip link show "$default_name" &>/dev/null; then
+        succes "  Détecté : $default_name ($role)"
+        echo "$default_name"
+    else
+        avert "  Interface $default_name ($role) non trouvée — utilisation du nom par défaut"
+        echo "$default_name"
+    fi
+}
+
+INTERFACE_VLAN10=$(_detect_iface "$DEFAULT_VLAN10" "VMnet1 VLAN10 IoT")
+INTERFACE_VLAN20=$(_detect_iface "$DEFAULT_VLAN20" "VMnet2 VLAN20 SIEM")
+INTERFACE_MGMT=$(_detect_iface "$DEFAULT_MGMT"   "VMnet3 VLAN30 Management")
+INTERFACE_NAT=$(_detect_iface "$DEFAULT_NAT"     "VMnet8 NAT Internet")
+
+info "Interfaces retenues :"
+info "  VLAN10 IoT  : ${INTERFACE_VLAN10}"
+info "  VLAN20 SIEM : ${INTERFACE_VLAN20}"
+info "  VLAN30 Mgmt : ${INTERFACE_MGMT}"
+info "  NAT Internet: ${INTERFACE_NAT}"
+
 # --- Variables de configuration ---
-INTERFACE_VLAN10="eth0"     # VMnet1 - parent macvlan IoT
-INTERFACE_VLAN20="eth1"     # VMnet2 - parent macvlan SIEM
-INTERFACE_MGMT="eth2"       # VMnet3 - Management/PKI, IP fixe
-INTERFACE_NAT="eth3"        # VMnet8 - NAT internet
 IP_MGMT="192.168.30.100"    # IP fixe Docker-Host dans VLAN30 Management
 GW_MGMT="192.168.30.1"      # Gateway VLAN30 (MikroTik)
 REPO_URL="https://github.com/AmineGhannouchi/PFE-IoT-Security"
@@ -145,7 +179,7 @@ cat > "$NETPLAN_FILE" << EOF
 # =============================================================================
 # Fichier     : 99-docker-host.yaml
 # Description : Configuration réseau pour Docker-Host - PFE IoT Security
-# Version     : 2.0
+# Version     : 3.0
 # Généré par  : setup-docker-host.sh
 # =============================================================================
 network:
@@ -266,21 +300,21 @@ etape "Étape 8/8 : Tests de connectivité"
 
 info "Test des interfaces réseau..."
 
-# Test eth0 (parent macvlan VLAN10)
+# Test ens33 (parent macvlan VLAN10)
 if ip link show "${INTERFACE_VLAN10}" &>/dev/null; then
     succes "Interface ${INTERFACE_VLAN10} active (parent macvlan VLAN10)"
 else
     avert "Interface ${INTERFACE_VLAN10} non disponible"
 fi
 
-# Test eth1 (parent macvlan VLAN20)
+# Test ens34 (parent macvlan VLAN20)
 if ip link show "${INTERFACE_VLAN20}" &>/dev/null; then
     succes "Interface ${INTERFACE_VLAN20} active (parent macvlan VLAN20)"
 else
     avert "Interface ${INTERFACE_VLAN20} non disponible"
 fi
 
-# Test eth2 (Management, IP fixe)
+# Test ens35 (Management, IP fixe)
 if ip link show "${INTERFACE_MGMT}" &>/dev/null; then
     succes "Interface ${INTERFACE_MGMT} active (Management ${IP_MGMT})"
 else
@@ -319,3 +353,5 @@ echo -e "${JAUNE}Fichiers importants :${RESET}"
 echo -e "  Configuration Docker : ${DOCKER_DIR}/docker-compose.yml"
 echo -e "  Dépôt PFE           : ${REPO_DIR}"
 echo ""
+
+# TODO Phase future : Ajouter support CoAP/DTLS (aiocoap) - voir amélioration optionnelle

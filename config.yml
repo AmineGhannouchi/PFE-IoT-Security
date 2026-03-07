@@ -22,6 +22,15 @@ environment:
   cpu_threads: 12
   storage_required_gb: 100
   storage_type: "SSD"
+  network_interfaces:
+    vlan10_parent: "ens33"    # VMnet1 - VLAN10 IoT
+    vlan20_parent: "ens34"    # VMnet2 - VLAN20 SIEM
+    mgmt_interface: "ens35"   # VMnet3 - VLAN30 Management
+    nat_interface: "ens36"    # VMnet8 - NAT Internet
+    mgmt_ip: "192.168.30.100"
+    wazuh_ip: "192.168.20.10"
+    wazuh_current_ip: "192.168.30.129"  # IP actuelle avant reconfiguration
+    wazuh_ova_version: "4.14.2"
 
 # ==========================================
 # Configuration Réseau
@@ -65,7 +74,7 @@ virtual_machines:
     ram_gb: 8
     cpu_cores: 2
     disk_gb: 50
-    ip: "192.168.20.10"
+    ip: "192.168.20.10"    # OVA 4.14.2 - actuellement sur VMnet3/192.168.30.129, reconfigurer vers VMnet2
     services:
       - "Wazuh Manager"
       - "OpenSearch"

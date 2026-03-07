@@ -2,7 +2,7 @@
 
 **Fichier**     : ip-addressing-table.md  
 **Description** : Tableau complet d'adressage IP de l'infrastructure PFE IoT Security  
-**Version**     : 2.0  
+**Version**     : 3.0  
 **Auteur**      : PFE IoT Security Team  
 **Date**        : 2026-03-07  
 
@@ -40,12 +40,18 @@
 
 ## 3. VM Docker-Host
 
-| Interface         | VMware  | Adresse IP          | Rôle                                      |
-|-------------------|---------|---------------------|-------------------------------------------|
-| eth0 (VMnet1)     | VMnet1  | -                   | Parent macvlan VLAN10 IoT (sans IP)       |
-| eth1 (VMnet2)     | VMnet2  | -                   | Parent macvlan VLAN20 SIEM (sans IP)      |
-| eth2 (VMnet3)     | VMnet3  | 192.168.30.100/24   | Accès réseau Management/PKI (IP fixe)     |
-| eth3 (VMnet8)     | VMnet8  | DHCP (VMware NAT)   | Accès internet (pull images Docker)       |
+| Équipement | Interface VMware | Interface Linux | Adresse IP | Rôle |
+|---|---|---|---|---|
+| Docker-Host (Ubuntu Server) | VMnet1 | ens33 | aucune (parent macvlan) | VLAN10 IoT |
+| Docker-Host (Ubuntu Server) | VMnet2 | ens34 | aucune (parent macvlan) | VLAN20 SIEM |
+| Docker-Host (Ubuntu Server) | VMnet3 | ens35 | 192.168.30.100/24 | VLAN30 Management |
+| Docker-Host (Ubuntu Server) | VMnet8 | ens36 | DHCP | NAT Internet |
+
+### Reconfiguration Wazuh OVA
+
+| Équipement | Interface VMware | Adresse IP cible | Statut | Note |
+|---|---|---|---|---|
+| Wazuh 4.14.2 OVA | VMnet2 | 192.168.20.10/24 | À reconfigurer | Actuellement sur VMnet3 (192.168.30.129) |
 
 ---
 
