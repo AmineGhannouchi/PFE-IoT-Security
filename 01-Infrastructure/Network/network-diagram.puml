@@ -69,7 +69,7 @@ package "VLAN 10 - Réseau IoT (192.168.10.0/24)" #E8F8F5 {
 
     node "SW-VLAN10-IoT\n(ethernet_switch GNS3)\ne0: trunk→MikroTik ether2\ne1-e3: access VLAN10" as SW10
 
-    rectangle "Docker-Host\nUbuntu 22.04\neth0.10: 192.168.10.100/24\n(VMware VMnet3)" as DOCKER_HOST_V10 {
+    rectangle "Docker-Host\nUbuntu 22.04\neth0 (VMnet1) - parent macvlan\n(sans IP directe)" as DOCKER_HOST_V10 {
         node "mosquitto\n192.168.10.20\nMQTT: 1883/8883/9001" as MQTT
         node "iot-gateway\n192.168.10.10\nMQTT enrichissement" as GW
         node "sensor-temp\n192.168.10.101\nTemp: 5s" as S_TEMP
@@ -87,8 +87,8 @@ package "VLAN 20 - Réseau SIEM (192.168.20.0/24)" #FEF9E7 {
 
     node "Wazuh Manager\n192.168.20.10\nAPI: 55000 | Agent: 1514\n(VMware VM)" as WAZUH
 
-    rectangle "Docker-Host\neth0.20: 192.168.20.100/24" as DOCKER_HOST_V20 {
-        node "suricata\n(réseau hôte)\nIDS - analyse eth0.10 SPAN" as SURICATA
+    rectangle "Docker-Host\neth1 (VMnet2) - parent macvlan\n(sans IP directe)" as DOCKER_HOST_V20 {
+        node "suricata\n(réseau hôte)\nIDS - analyse eth0 SPAN" as SURICATA
     }
 }
 
@@ -99,7 +99,7 @@ package "VLAN 30 - Réseau Management/PKI (192.168.30.0/24)" #F4ECF7 {
 
     node "SW-VLAN30-MGT\n(ethernet_switch GNS3)\ne0: trunk→MikroTik ether4\ne1: access Vault\ne2: access host-windows" as SW30
 
-    rectangle "Docker-Host\neth0.30: 192.168.30.100/24" as DOCKER_HOST_V30 {
+    rectangle "Docker-Host\neth2 (VMnet3) - 192.168.30.100/24" as DOCKER_HOST_V30 {
         database "vault\n192.168.30.10\nAPI: 8200 | UI: 8200/ui\nHashiCorp Vault 1.15" as VAULT
     }
 }

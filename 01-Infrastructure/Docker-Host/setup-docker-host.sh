@@ -3,11 +3,15 @@
 # Fichier     : setup-docker-host.sh
 # Description : Script de configuration complète de la VM Docker-Host Ubuntu 22.04
 #               pour le PFE IoT Security - Phase 1
-# Version     : 1.0
+# Version     : 2.0
 # Auteur      : PFE IoT Security Team
-# Date        : 2026-03-03
+# Date        : 2026-03-07
 # Usage       : sudo bash setup-docker-host.sh
-# Prérequis   : Ubuntu 22.04 Server, 2 interfaces réseau (eth0=VMnet3, eth1=VMnet8)
+# Prérequis   : Ubuntu 22.04 Server, 4 interfaces réseau :
+#               eth0=VMnet1 (parent macvlan VLAN10 IoT)
+#               eth1=VMnet2 (parent macvlan VLAN20 SIEM)
+#               eth2=VMnet3 (IP fixe 192.168.30.100, VLAN30 Mgmt)
+#               eth3=VMnet8 (DHCP NAT internet)
 # =============================================================================
 
 set -euo pipefail
@@ -29,14 +33,12 @@ erreur()  { echo -e "${ROUGE}[ERREUR]${RESET} $*"; exit 1; }
 etape()   { echo -e "\n${CYAN}${GRAS}>>> $* <<<${RESET}\n"; }
 
 # --- Variables de configuration ---
-INTERFACE_GNS3="eth0"       # Interface connectée à VMnet3 (réseau GNS3)
-INTERFACE_NAT="eth1"        # Interface connectée à VMnet8 (NAT internet)
-IP_VLAN10="192.168.10.100"  # IP Docker-Host dans VLAN10 IoT
-IP_VLAN20="192.168.20.100"  # IP Docker-Host dans VLAN20 SIEM
-IP_VLAN30="192.168.30.100"  # IP Docker-Host dans VLAN30 Management
-GW_VLAN10="192.168.10.1"    # Gateway VLAN10 (MikroTik)
-GW_VLAN20="192.168.20.1"    # Gateway VLAN20 (MikroTik)
-GW_VLAN30="192.168.30.1"    # Gateway VLAN30 (MikroTik)
+INTERFACE_VLAN10="eth0"     # VMnet1 - parent macvlan IoT
+INTERFACE_VLAN20="eth1"     # VMnet2 - parent macvlan SIEM
+INTERFACE_MGMT="eth2"       # VMnet3 - Management/PKI, IP fixe
+INTERFACE_NAT="eth3"        # VMnet8 - NAT internet
+IP_MGMT="192.168.30.100"    # IP fixe Docker-Host dans VLAN30 Management
+GW_MGMT="192.168.30.1"      # Gateway VLAN30 (MikroTik)
 REPO_URL="https://github.com/AmineGhannouchi/PFE-IoT-Security"
 REPO_DIR="/opt/PFE-IoT-Security"
 
@@ -115,12 +117,11 @@ fi
 # =============================================================================
 etape "Étape 3/8 : Installation des outils réseau"
 
-info "Installation de net-tools, tcpdump, iproute2, vlan..."
+info "Installation de net-tools, tcpdump, iproute2..."
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
     net-tools \
     tcpdump \
     iproute2 \
-    vlan \
     iputils-ping \
     netcat-openbsd \
     curl \
@@ -129,29 +130,22 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
     git \
     vim
 
-# Charger le module kernel 8021q pour les VLANs
-if ! lsmod | grep -q "^8021q"; then
-    modprobe 8021q
-    echo "8021q" >> /etc/modules
-    succes "Module kernel 8021q chargé"
-else
-    succes "Module kernel 8021q déjà actif"
-fi
+succes "Outils réseau installés"
 
 # =============================================================================
-# Étape 4 : Configuration des interfaces VLAN via Netplan
+# Étape 4 : Configuration des interfaces réseau via Netplan
 # =============================================================================
-etape "Étape 4/8 : Configuration des interfaces VLAN (Netplan)"
+etape "Étape 4/8 : Configuration des interfaces réseau (Netplan)"
 
-NETPLAN_FILE="/etc/netplan/99-vlans.yaml"
+NETPLAN_FILE="/etc/netplan/99-docker-host.yaml"
 
 info "Création du fichier Netplan : $NETPLAN_FILE"
 
 cat > "$NETPLAN_FILE" << EOF
 # =============================================================================
-# Fichier     : 99-vlans.yaml
-# Description : Configuration VLAN pour Docker-Host - PFE IoT Security
-# Version     : 1.0
+# Fichier     : 99-docker-host.yaml
+# Description : Configuration réseau pour Docker-Host - PFE IoT Security
+# Version     : 2.0
 # Généré par  : setup-docker-host.sh
 # =============================================================================
 network:
@@ -159,46 +153,32 @@ network:
   renderer: networkd
 
   ethernets:
-    # Interface GNS3 (VMnet3 - réseau host-only)
-    ${INTERFACE_GNS3}:
+    # Interface VMnet1 - parent macvlan VLAN10 IoT (sans IP directe)
+    ${INTERFACE_VLAN10}:
       dhcp4: false
       dhcp6: false
 
-    # Interface NAT (VMnet8 - accès internet)
+    # Interface VMnet2 - parent macvlan VLAN20 SIEM (sans IP directe)
+    ${INTERFACE_VLAN20}:
+      dhcp4: false
+      dhcp6: false
+
+    # Interface VMnet3 - Management/PKI, IP fixe
+    ${INTERFACE_MGMT}:
+      dhcp4: false
+      dhcp6: false
+      addresses:
+        - ${IP_MGMT}/24
+      routes:
+        - to: 192.168.30.0/24
+          via: ${GW_MGMT}
+      nameservers:
+        addresses: [8.8.8.8, 8.8.4.4]
+
+    # Interface VMnet8 - NAT internet (DHCP)
     ${INTERFACE_NAT}:
       dhcp4: true
       dhcp6: false
-
-  vlans:
-    # VLAN 10 - Réseau IoT
-    ${INTERFACE_GNS3}.10:
-      id: 10
-      link: ${INTERFACE_GNS3}
-      addresses:
-        - ${IP_VLAN10}/24
-      routes:
-        - to: 192.168.10.0/24
-          via: ${GW_VLAN10}
-
-    # VLAN 20 - Réseau SIEM
-    ${INTERFACE_GNS3}.20:
-      id: 20
-      link: ${INTERFACE_GNS3}
-      addresses:
-        - ${IP_VLAN20}/24
-      routes:
-        - to: 192.168.20.0/24
-          via: ${GW_VLAN20}
-
-    # VLAN 30 - Réseau Management/PKI
-    ${INTERFACE_GNS3}.30:
-      id: 30
-      link: ${INTERFACE_GNS3}
-      addresses:
-        - ${IP_VLAN30}/24
-      routes:
-        - to: 192.168.30.0/24
-          via: ${GW_VLAN30}
 EOF
 
 # Restreindre les permissions Netplan (requis depuis Ubuntu 22.04)
@@ -207,10 +187,11 @@ chmod 600 "$NETPLAN_FILE"
 info "Application de la configuration Netplan..."
 netplan apply
 
-succes "Interfaces VLAN configurées :"
-succes "  ${INTERFACE_GNS3}.10 → ${IP_VLAN10}/24 (VLAN10 IoT)"
-succes "  ${INTERFACE_GNS3}.20 → ${IP_VLAN20}/24 (VLAN20 SIEM)"
-succes "  ${INTERFACE_GNS3}.30 → ${IP_VLAN30}/24 (VLAN30 Management)"
+succes "Interfaces réseau configurées :"
+succes "  ${INTERFACE_VLAN10} → sans IP (parent macvlan VLAN10 IoT)"
+succes "  ${INTERFACE_VLAN20} → sans IP (parent macvlan VLAN20 SIEM)"
+succes "  ${INTERFACE_MGMT} → ${IP_MGMT}/24 (VLAN30 Management)"
+succes "  ${INTERFACE_NAT} → DHCP (NAT internet)"
 
 # =============================================================================
 # Étape 5 : Création de la structure de répertoires Docker
@@ -283,38 +264,36 @@ succes "Service systemd créé et activé"
 # =============================================================================
 etape "Étape 8/8 : Tests de connectivité"
 
-info "Test des interfaces VLAN..."
+info "Test des interfaces réseau..."
 
-# Test VLAN10
-if ip link show "${INTERFACE_GNS3}.10" &>/dev/null; then
-    succes "Interface ${INTERFACE_GNS3}.10 active"
+# Test eth0 (parent macvlan VLAN10)
+if ip link show "${INTERFACE_VLAN10}" &>/dev/null; then
+    succes "Interface ${INTERFACE_VLAN10} active (parent macvlan VLAN10)"
 else
-    avert "Interface ${INTERFACE_GNS3}.10 non disponible (GNS3 non connecté ?)"
+    avert "Interface ${INTERFACE_VLAN10} non disponible"
 fi
 
-# Test VLAN20
-if ip link show "${INTERFACE_GNS3}.20" &>/dev/null; then
-    succes "Interface ${INTERFACE_GNS3}.20 active"
+# Test eth1 (parent macvlan VLAN20)
+if ip link show "${INTERFACE_VLAN20}" &>/dev/null; then
+    succes "Interface ${INTERFACE_VLAN20} active (parent macvlan VLAN20)"
 else
-    avert "Interface ${INTERFACE_GNS3}.20 non disponible (GNS3 non connecté ?)"
+    avert "Interface ${INTERFACE_VLAN20} non disponible"
 fi
 
-# Test VLAN30
-if ip link show "${INTERFACE_GNS3}.30" &>/dev/null; then
-    succes "Interface ${INTERFACE_GNS3}.30 active"
+# Test eth2 (Management, IP fixe)
+if ip link show "${INTERFACE_MGMT}" &>/dev/null; then
+    succes "Interface ${INTERFACE_MGMT} active (Management ${IP_MGMT})"
 else
-    avert "Interface ${INTERFACE_GNS3}.30 non disponible (GNS3 non connecté ?)"
+    avert "Interface ${INTERFACE_MGMT} non disponible"
 fi
 
-# Test ping gateways (optionnel - peut échouer si MikroTik pas démarré)
-info "Test ping vers les gateways MikroTik (5s timeout)..."
-for gw in "$GW_VLAN10" "$GW_VLAN20" "$GW_VLAN30"; do
-    if ping -c 1 -W 5 "$gw" &>/dev/null; then
-        succes "  Gateway $gw → accessible"
-    else
-        avert "  Gateway $gw → non accessible (MikroTik démarré ?)"
-    fi
-done
+# Test ping gateway Management (optionnel - peut échouer si MikroTik pas démarré)
+info "Test ping vers la gateway Management MikroTik (5s timeout)..."
+if ping -c 1 -W 5 "$GW_MGMT" &>/dev/null; then
+    succes "  Gateway $GW_MGMT → accessible"
+else
+    avert "  Gateway $GW_MGMT → non accessible (MikroTik démarré ?)"
+fi
 
 # =============================================================================
 # Résumé final
@@ -324,14 +303,15 @@ echo -e "${VERT}${GRAS}============================================${RESET}"
 echo -e "${VERT}${GRAS}  Docker-Host configuré avec succès !      ${RESET}"
 echo -e "${VERT}${GRAS}============================================${RESET}"
 echo ""
-echo -e "${CYAN}Interfaces VLAN configurées :${RESET}"
-echo -e "  VLAN10 IoT  : ${IP_VLAN10}/24 (${INTERFACE_GNS3}.10)"
-echo -e "  VLAN20 SIEM : ${IP_VLAN20}/24 (${INTERFACE_GNS3}.20)"
-echo -e "  VLAN30 Mgmt : ${IP_VLAN30}/24 (${INTERFACE_GNS3}.30)"
+echo -e "${CYAN}Interfaces réseau configurées :${RESET}"
+echo -e "  VLAN10 IoT  : ${INTERFACE_VLAN10} (parent macvlan, sans IP directe)"
+echo -e "  VLAN20 SIEM : ${INTERFACE_VLAN20} (parent macvlan, sans IP directe)"
+echo -e "  VLAN30 Mgmt : ${IP_MGMT}/24 (${INTERFACE_MGMT})"
+echo -e "  NAT internet: ${INTERFACE_NAT} (DHCP)"
 echo ""
 echo -e "${CYAN}Prochaines étapes :${RESET}"
 echo -e "  1. Démarrer GNS3 et la topologie PFE"
-echo -e "  2. Vérifier la connectivité : ping ${GW_VLAN10}"
+echo -e "  2. Vérifier la connectivité : ping ${GW_MGMT}"
 echo -e "  3. Démarrer les conteneurs : cd ${DOCKER_DIR} && docker compose up -d"
 echo -e "  4. Vérifier les services  : docker compose ps"
 echo ""

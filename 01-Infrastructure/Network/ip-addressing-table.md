@@ -2,9 +2,9 @@
 
 **Fichier**     : ip-addressing-table.md  
 **Description** : Tableau complet d'adressage IP de l'infrastructure PFE IoT Security  
-**Version**     : 1.0  
+**Version**     : 2.0  
 **Auteur**      : PFE IoT Security Team  
-**Date**        : 2026-03-03  
+**Date**        : 2026-03-07  
 
 ---
 
@@ -40,13 +40,12 @@
 
 ## 3. VM Docker-Host
 
-| Interface         | Adresse IP          | Rôle                               |
-|-------------------|---------------------|------------------------------------|
-| eth0 (VMnet3)     | -                   | Interface physique GNS3            |
-| eth0.10 (VLAN10)  | 192.168.10.100/24   | Accès réseau IoT                   |
-| eth0.20 (VLAN20)  | 192.168.20.100/24   | Accès réseau SIEM                  |
-| eth0.30 (VLAN30)  | 192.168.30.100/24   | Accès réseau Management            |
-| eth1 (VMnet8)     | DHCP (VMware NAT)   | Accès internet (pull images Docker)|
+| Interface         | VMware  | Adresse IP          | Rôle                                      |
+|-------------------|---------|---------------------|-------------------------------------------|
+| eth0 (VMnet1)     | VMnet1  | -                   | Parent macvlan VLAN10 IoT (sans IP)       |
+| eth1 (VMnet2)     | VMnet2  | -                   | Parent macvlan VLAN20 SIEM (sans IP)      |
+| eth2 (VMnet3)     | VMnet3  | 192.168.30.100/24   | Accès réseau Management/PKI (IP fixe)     |
+| eth3 (VMnet8)     | VMnet8  | DHCP (VMware NAT)   | Accès internet (pull images Docker)       |
 
 ---
 
@@ -80,10 +79,10 @@
 
 ## 7. VMs VMware
 
-| VM              | Réseau VMware  | Adresse IP         | Rôle                              |
-|-----------------|----------------|--------------------|-----------------------------------|
-| Wazuh Manager   | VMnet3         | 192.168.20.10      | SIEM - collecte et analyse logs   |
-| Docker-Host     | VMnet3, VMnet8 | Voir section 3     | Hébergement conteneurs Docker     |
+| VM              | Réseau VMware               | Adresse IP         | Rôle                              |
+|-----------------|-----------------------------|--------------------|-----------------------------------|
+| Wazuh Manager   | VMnet2                      | 192.168.20.10      | SIEM - collecte et analyse logs   |
+| Docker-Host     | VMnet1, VMnet2, VMnet3, VMnet8 | Voir section 3  | Hébergement conteneurs Docker     |
 
 ---
 
