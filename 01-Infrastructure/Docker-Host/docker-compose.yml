@@ -2,12 +2,12 @@
 # Fichier     : docker-compose.yml
 # Description : Infrastructure Docker complète pour le PFE IoT Security
 #               Phase 1 - Tous les services IoT, SIEM et PKI
-# Version     : 2.0
+# Version     : 3.0
 # Auteur      : PFE IoT Security Team
 # Date        : 2026-03-07
 # Usage       : docker compose up -d
-# Prérequis   : 4 interfaces réseau sur Docker-Host (eth0=VMnet1, eth1=VMnet2,
-#               eth2=VMnet3, eth3=VMnet8)
+# Prérequis   : 4 interfaces réseau sur Docker-Host (ens33=VMnet1, ens34=VMnet2,
+#               ens35=VMnet3, ens36=VMnet8)
 # =============================================================================
 
 services:
@@ -228,6 +228,7 @@ services:
   # Suricata IDS
   # Analyse le trafic miroir (SPAN) depuis MikroTik ether5
   # Utilise le réseau host pour accéder aux interfaces VLAN
+  # Interface SPAN/miroir MikroTik ether5 → ens33 (VMnet1)
   # ---------------------------------------------------------------------------
   suricata:
     image: jasonish/suricata:latest
@@ -240,13 +241,13 @@ services:
       - NET_RAW
       - SYS_NICE
     environment:
-      - SURICATA_OPTIONS=-i eth0
+      - SURICATA_OPTIONS=-i ens33
     volumes:
       - ./suricata/rules:/etc/suricata/rules:ro
       - suricata-logs:/var/log/suricata
     command: >
       suricata -c /etc/suricata/suricata.yaml
-               -i eth0
+               -i ens33
                --set outputs.1.eve-log.filename=/var/log/suricata/eve.json
     healthcheck:
       test: ["CMD", "test", "-f", "/var/log/suricata/suricata.log"]
@@ -269,7 +270,7 @@ networks:
   vlan10:
     driver: macvlan
     driver_opts:
-      parent: eth0    # Interface VMnet1 du Docker-Host (parent macvlan VLAN10)
+      parent: ens33    # Interface VMnet1 du Docker-Host (parent macvlan VLAN10)
     ipam:
       config:
         - subnet: 192.168.10.0/24
@@ -280,7 +281,7 @@ networks:
   vlan20:
     driver: macvlan
     driver_opts:
-      parent: eth1    # Interface VMnet2 du Docker-Host (parent macvlan VLAN20)
+      parent: ens34    # Interface VMnet2 du Docker-Host (parent macvlan VLAN20)
     ipam:
       config:
         - subnet: 192.168.20.0/24
@@ -291,7 +292,7 @@ networks:
   vlan30:
     driver: macvlan
     driver_opts:
-      parent: eth2    # Interface VMnet3 du Docker-Host (Management/PKI)
+      parent: ens35    # Interface VMnet3 du Docker-Host (Management/PKI)
     ipam:
       config:
         - subnet: 192.168.30.0/24
