@@ -206,7 +206,7 @@ Les nœuds VPCS suivants doivent être **supprimés** et remplacés par des réf
 2. Ajouter un nœud **Cloud** pointant vers `VMnet3` (réseau GNS3 host-only)
 3. Connecter ce nœud Cloud aux switches appropriés
 4. Démarrer la VM Docker-Host (Ubuntu 22.04 sur VMware VMnet3)
-5. Les conteneurs Docker communiqueront via les interfaces VLAN (`eth0.10`, `eth0.20`, `eth0.30`)
+5. Les conteneurs Docker communiqueront via les interfaces physiques (`eth0`, `eth1`, `eth2`) en mode macvlan
 
 ---
 
