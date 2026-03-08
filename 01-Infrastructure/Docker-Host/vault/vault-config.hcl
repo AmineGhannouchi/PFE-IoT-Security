@@ -1,16 +1,16 @@
 # =============================================================================
 # Fichier     : vault-config.hcl
 # Description : Configuration HashiCorp Vault - PFE IoT Security
-#               Phase 1 : stockage fichier local, TLS désactivé (TLS Phase 2)
-# Version     : 1.0
+#               Phase 2 : TLS activé, PKI secrets engine
+# Version     : 2.0
 # Auteur      : PFE IoT Security Team
-# Date        : 2026-03-03
+# Date        : 2026-03-08
 # =============================================================================
 
 # -----------------------------------------------------------------------------
 # Backend de stockage
-# Utilise le système de fichiers local (adapté Phase 1)
-# En production, préférer Consul ou intégrated Raft storage
+# Utilise le système de fichiers local (adapté Phase 1/2)
+# En production, préférer Consul ou integrated Raft storage
 # -----------------------------------------------------------------------------
 storage "file" {
   path = "/vault/data"
@@ -18,29 +18,30 @@ storage "file" {
 
 # -----------------------------------------------------------------------------
 # Interface d'écoute TCP
-# TLS désactivé pour Phase 1 (sera activé Phase 2 avec PKI Vault)
-# ATTENTION : Ne pas exposer ce port sur internet sans TLS
+# TLS activé en Phase 2 avec certificats PKI générés par Vault
 # -----------------------------------------------------------------------------
 listener "tcp" {
   address       = "0.0.0.0:8200"
-  tls_disable   = true
+  tls_disable   = false
 
-  # Désactiver le TLS en Phase 1 uniquement
-  # Pour activer TLS en Phase 2, commenter tls_disable et décommenter :
-  #tls_cert_file = "/vault/certs/vault.crt"
-  #tls_key_file  = "/vault/certs/vault.key"
-  #tls_ca_file   = "/vault/certs/ca.crt"
+  # Certificats TLS générés par Vault PKI (Phase 2)
+  tls_cert_file = "/vault/certs/vault.crt"
+  tls_key_file  = "/vault/certs/vault.key"
+  tls_ca_file   = "/vault/certs/ca.crt"
+
+  # Pour revenir en Phase 1 (tests) :
+  # tls_disable = true
 }
 
 # -----------------------------------------------------------------------------
 # Adresses de l'API Vault (utilisées pour les redirections et le clustering)
 # -----------------------------------------------------------------------------
-api_addr     = "http://192.168.30.10:8200"
+api_addr     = "https://192.168.30.10:8200"
 cluster_addr = "https://192.168.30.10:8201"
 
 # -----------------------------------------------------------------------------
 # Interface utilisateur Web (Vault UI)
-# Accessible sur http://192.168.30.10:8200/ui
+# Accessible sur https://192.168.30.10:8200/ui
 # -----------------------------------------------------------------------------
 ui = true
 
