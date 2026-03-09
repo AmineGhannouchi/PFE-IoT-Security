@@ -4,27 +4,27 @@
 #               PFE IoT Security - Phase 1
 #               Ce fichier reflète ce que setup-docker-host.sh génère dans
 #               /etc/netplan/99-docker-host.yaml
-# Version     : 2.0
+# Version     : 3.0
 # Auteur      : PFE IoT Security Team
 # Date        : 2026-03-07
 # =============================================================================
 
 network:
-  version: 2
+  version: 3
   renderer: networkd
   ethernets:
     # Interface VMnet1 - parent macvlan VLAN10 IoT (sans IP directe)
-    eth0:
+    ens33:
       dhcp4: false
       dhcp6: false
 
     # Interface VMnet2 - parent macvlan VLAN20 SIEM (sans IP directe)
-    eth1:
+    ens34:
       dhcp4: false
       dhcp6: false
 
     # Interface VMnet3 - Management/PKI, IP fixe
-    eth2:
+    ens35:
       dhcp4: false
       dhcp6: false
       addresses:
@@ -36,6 +36,6 @@ network:
         addresses: [8.8.8.8, 8.8.4.4]
 
     # Interface VMnet8 - NAT internet (DHCP)
-    eth3:
+    ens36:
       dhcp4: true
       dhcp6: false
